@@ -86,7 +86,7 @@ for i in range(8):
 
 batch_size = 128
 embedding_size = 128  # Dimension of the embedding vector.
-skip_window = 2       # How many words to consider left and right.
+skip_window = 1       # How many words to consider left and right.
 num_skips = 2         # How many times to reuse an input to generate a label.
 
 # We pick a random validation set to sample nearest neighbors. Here we limit the
@@ -155,11 +155,29 @@ def conv2d(x, W):
   return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
 def max_pool_2x2(x):
-  return tf.nn.max_pool(x, ksize=[1, 4, 4, 1], strides=[1, 4, 4, 1], padding='SAME')
+  return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
+
+import random
+
+def next_batch(lines, onehots, size):
+  l = [];
+  o = [];
+  for i in range(size):
+    n = random.randint(0, len(lines)-1);
+    l.append(lines[n])
+    o.append(onehots[n])
+  return (l,o)
 
 
 
+def find_max(list):
+  m = 0
+  for i in range(1, len(list)):
+    if list[i] > list[m]:
+      m = i;
 
+  return m
 
 
 
@@ -241,16 +259,16 @@ with tf.Session(graph=graph) as session:
   h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
   h_pool2 = max_pool_2x2(h_conv2)
 
-  #W_conv3 = weight_variable([5, 5, 64, 128])
-  #b_conv3 = bias_variable([128])
+  W_conv3 = weight_variable([5, 5, 64, 128])
+  b_conv3 = bias_variable([128])
 
-  #h_conv3 = tf.nn.relu(conv2d(h_pool2, W_conv3) + b_conv3)
-  #h_pool3 = max_pool_2x2(h_conv3)
+  h_conv3 = tf.nn.relu(conv2d(h_pool2, W_conv3) + b_conv3)
+  h_pool3 = max_pool_2x2(h_conv3)
 
-  W_fc1 = weight_variable([8 * 8 * 64, 1024])
+  W_fc1 = weight_variable([16 * 16 * 128, 1024])
   b_fc1 = bias_variable([1024])
 
-  h_pool3_flat = tf.reshape(h_pool2, [-1, 8*8*64])
+  h_pool3_flat = tf.reshape(h_pool3, [-1, 16*16*128])
   h_fc1 = tf.nn.relu(tf.matmul(h_pool3_flat, W_fc1) + b_fc1)
   
   keep_prob = tf.placeholder(tf.float32)
@@ -261,9 +279,13 @@ with tf.Session(graph=graph) as session:
 
   y_conv=tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 
+  
+  
+
   cross_entropy = -tf.reduce_sum(y_*tf.log(y_conv))
   train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
   correct_prediction = tf.equal(tf.argmax(y_conv,1), tf.argmax(y_,1))
+  
   accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
   session.run(tf.initialize_all_variables())
 
@@ -289,21 +311,43 @@ with tf.Session(graph=graph) as session:
 
 
 
-  for i in range((read.m-50)/25):
+
+  for i in range(10):
     print(i)
-    batch = [lines[25*i : 25*i + 50], read.onehots[25*i: 25*i + 50]]
+    #batch = [lines[20*i : 20*i + 20], read.onehots[20*i: 20*i + 20]]
     #batch = mnist.train.next_batch(50)
+    batch = next_batch(lines, read.onehots,50)
     if i%100 == 0:
       train_accuracy = accuracy.eval(feed_dict={x:batch[0], y_: batch[1], keep_prob: 1.0})
       print("step %d, training accuracy %g"%(i, train_accuracy))
     train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
 
-  print("test accuracy %g"%accuracy.eval(feed_dict={x: lines, y_: read.onehots, keep_prob: 1.0}))
+  print("test accuracy %g"%accuracy.eval(feed_dict={x: lines[0:50], y_: read.onehots[0:50], keep_prob: 1.0}))
 
 
   saver2 = tf.train.Saver()
   save_path = saver2.save(session,"model.ckpt")
   print("Model saved in file: %s" % save_path)
+
+
+  while True:
+    inp = raw_input()
+    line = inp.upper().split()
+    l=[]
+    for i in range(0, len(line)):
+      try:
+        word = line[i]
+        l = np.concatenate((l, (final_embeddings[dictionary[word]])))
+        
+      except KeyError:
+        a = 1 + 1
+        #print(word)
+        
+      l = np.concatenate((l, (np.full(128 * 128-len(l),0))))#* (150 - len(l)))))
+    
+    x = y_conv.eval(feed_dict={x: l})
+    print(find_max(x))
+        
 
 
 #  for i in range(500):
@@ -320,62 +364,4 @@ with tf.Session(graph=graph) as session:
 
 
 
-def plot_with_labels(low_dim_embs, labels, filename='tsne.png'):
-  assert low_dim_embs.shape[0] >= len(labels), "More labels than embeddings"
-  plt.figure(figsize=(18, 18))  #in inches
-  for i, label in enumerate(labels):
-    x, y = low_dim_embs[i,:]
-    plt.scatter(x, y)
-    plt.annotate(label,
-                 xy=(x, y),
-                 xytext=(5, 2),
-                 textcoords='offset points',
-                 ha='right',
-                 va='bottom')
 
-  plt.savefig(filename)
-
-try:
-  from sklearn.manifold import TSNE
-  import matplotlib as mlp
-  mlp.use('Agg')
-
-  import matplotlib.pyplot as plt
-
-  tsne = TSNE(perplexity=30, n_components=2, init='pca', n_iter=5000)
-  plot_only = 500
-  low_dim_embs = tsne.fit_transform(final_embeddings[:plot_only,:])
-  labels = [reverse_dictionary[i] for i in xrange(plot_only)]
-  plot_with_labels(low_dim_embs, labels)
-
-except ImportError:
-  print("Please install sklearn and matplotlib to visualize embeddings.")
-
-
-labels = [reverse_dictionary[i] for i in reverse_dictionary]
-
-
-print(len(labels))
-print (len(final_embeddings))
-
-f = open('labels.txt','w')
-for a in labels:
-  f.write(a + '\n')
-f.close
-
-
-
-
-
-
-
-
-
-
-
-
-
-#f2 = open('embeddings.txt' , 'w')
-#for a in final_embeddings:
-#  f2.write(str(a) + '\n')
-#f2.close
