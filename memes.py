@@ -155,7 +155,7 @@ def conv2d(x, W):
   return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
 def max_pool_2x2(x):
-  return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+  return tf.nn.max_pool(x, ksize=[1, 4, 4, 1], strides=[1, 4, 4, 1], padding='SAME')
 
 
 
@@ -241,16 +241,16 @@ with tf.Session(graph=graph) as session:
   h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
   h_pool2 = max_pool_2x2(h_conv2)
 
-  W_conv3 = weight_variable([5, 5, 64, 128])
-  b_conv3 = bias_variable([128])
+  #W_conv3 = weight_variable([5, 5, 64, 128])
+  #b_conv3 = bias_variable([128])
 
-  h_conv3 = tf.nn.relu(conv2d(h_pool2, W_conv3) + b_conv3)
-  h_pool3 = max_pool_2x2(h_conv3)
+  #h_conv3 = tf.nn.relu(conv2d(h_pool2, W_conv3) + b_conv3)
+  #h_pool3 = max_pool_2x2(h_conv3)
 
-  W_fc1 = weight_variable([16 * 16 * 128, 1024])
+  W_fc1 = weight_variable([8 * 8 * 64, 1024])
   b_fc1 = bias_variable([1024])
 
-  h_pool3_flat = tf.reshape(h_pool3, [-1, 16*16*128])
+  h_pool3_flat = tf.reshape(h_pool2, [-1, 8*8*64])
   h_fc1 = tf.nn.relu(tf.matmul(h_pool3_flat, W_fc1) + b_fc1)
   
   keep_prob = tf.placeholder(tf.float32)
@@ -289,7 +289,8 @@ with tf.Session(graph=graph) as session:
 
 
 
-  for i in range(read.m/25):
+  for i in range((read.m-50)/25):
+    print(i)
     batch = [lines[25*i : 25*i + 50], read.onehots[25*i: 25*i + 50]]
     #batch = mnist.train.next_batch(50)
     if i%100 == 0:
@@ -298,6 +299,11 @@ with tf.Session(graph=graph) as session:
     train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
 
   print("test accuracy %g"%accuracy.eval(feed_dict={x: lines, y_: read.onehots, keep_prob: 1.0}))
+
+
+  saver2 = tf.train.Saver()
+  save_path = saver2.save(session,"model.ckpt")
+  print("Model saved in file: %s" % save_path)
 
 
 #  for i in range(500):
