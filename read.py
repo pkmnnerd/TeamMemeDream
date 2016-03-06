@@ -3,6 +3,8 @@ import re
 f = open('memes/meme_top.txt', 'r')
 f2 = open('memes/meme_bot.txt', 'r')
 f3 = open('memes/meme_types.txt', 'r')
+#f4 = open('newmemes/meme_typesf.txt', 'r')
+
 
 lines = []
 lines1 = []
@@ -29,7 +31,8 @@ for line in f2:
             l.append(match[0]);
     lines2.append(l)
 
-
+print len(lines1)
+print len(lines2)
 
 
 
@@ -51,4 +54,10 @@ for i in types:
     l[i-1] = 1
     onehots.append(l)
 
+#num_to_meme = {}
 
+#for line in f4:
+#    words = line.split(2)
+#    k = int(words[0])
+#    if k not in num_to_meme:
+#        num_to_meme[k] = words[2]

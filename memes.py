@@ -184,7 +184,7 @@ def find_max(list):
 
 
 # Step 5: Begin training.
-num_steps = 10001
+num_steps = 100001
 
 with tf.Session(graph=graph) as session:
   # We must initialize all variables before we use them.
@@ -282,7 +282,7 @@ with tf.Session(graph=graph) as session:
   
   
 
-  cross_entropy = -tf.reduce_sum(y_*tf.log(y_conv))
+  cross_entropy = -tf.reduce_sum(y_*tf.log(tf.clip_by_value(y_conv,1e-10,1.0)))
   train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
   correct_prediction = tf.equal(tf.argmax(y_conv,1), tf.argmax(y_,1))
   
@@ -312,7 +312,7 @@ with tf.Session(graph=graph) as session:
 
 
 
-  for i in range(10):
+  for i in range(5000):
     print(i)
     #batch = [lines[20*i : 20*i + 20], read.onehots[20*i: 20*i + 20]]
     #batch = mnist.train.next_batch(50)
@@ -342,11 +342,12 @@ with tf.Session(graph=graph) as session:
       except KeyError:
         a = 1 + 1
         #print(word)
-        
-      l = np.concatenate((l, (np.full(128 * 128-len(l),0))))#* (150 - len(l)))))
-    
-    x = y_conv.eval(feed_dict={x: l})
-    print(find_max(x))
+      
+    l = np.concatenate((l, (np.full(128 * 128-len(l),0))))#* (150 - len(l)))))
+    print(l)
+    ans = y_conv.eval(feed_dict={x: [l], keep_prob: 1.0})
+    print(ans)
+    print(find_max(ans))
         
 
 
